@@ -9,31 +9,50 @@ class CardProduct extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(alignment: Alignment.bottomCenter, children: [
-      Container(
+    final _card = Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        Container(
           width: MediaQuery.of(context).size.width,
           child: FadeInImage(
-            placeholder: AssetImage('assetName'),
-            image: NetworkImage('url'),
+            placeholder: NetworkImage(
+                'https://c.tenor.com/1qrYT711uEoAAAAC/cargando.gif'),
+            image: NetworkImage(productDocument['imgprod']),
             fit: BoxFit.cover,
             fadeInDuration: Duration(milliseconds: 100),
             height: 230.0,
-          )),
-      Opacity(
-        opacity: .6,
-        child: Container(
-          height: 55.0,
-          color: Colors.black,
-          child: Row(
-            children: [
-              Text(
-                productDocument['cveprod'],
-                style: TextStyle(color: Colors.white),
-              )
-            ],
           ),
         ),
-      )
-    ]);
+        Opacity(
+          opacity: .6,
+          child: Container(
+            height: 55.0,
+            color: Colors.black,
+            child: Row(
+              children: [
+                Text(
+                  productDocument['cveprod'],
+                  style: TextStyle(color: Colors.white),
+                )
+              ],
+            ),
+          ),
+        )
+      ],
+    );
+    return Container(
+      margin: EdgeInsets.all(15.0),
+      decoration:
+          BoxDecoration(borderRadius: BorderRadius.circular(10.0), boxShadow: [
+        BoxShadow(
+            color: Colors.grey.withOpacity(.2),
+            offset: Offset(0.0, 5.0),
+            blurRadius: 1.0)
+      ]),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10.0),
+        child: _card,
+      ),
+    );
   }
 }
