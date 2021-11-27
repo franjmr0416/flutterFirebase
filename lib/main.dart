@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
             actions: [
               IconButton(
                 onPressed: () {
-                  Get.to(FormProductScreen());
+                  Get.to(FormProductScreen(), transition: Transition.cupertino);
                 },
                 icon: Icon(Icons.add),
               ),

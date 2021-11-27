@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase/providers/firebase_api.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:path/path.dart';
 import 'package:firebase/models/product_dao.dart';
 import 'package:firebase/providers/firebase_provider.dart';
@@ -22,8 +23,9 @@ class _FormProductScreenState extends State<FormProductScreen> {
 
   UploadTask? task;
   File? file;
-  FirebaseProvider? _firebaseProvider;
-  String? urlImage;
+  FirebaseProvider _firebaseProvider = FirebaseProvider();
+
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -35,81 +37,94 @@ class _FormProductScreenState extends State<FormProductScreen> {
         title: Text('Agregar producto'),
       ),
       body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 15, left: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Nombre',
-                    style: TextStyle(fontSize: 18),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 15, left: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Nombre',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(left: 20, right: 20),
+                child: TextFormField(
+                  controller: _controllerNombre,
+                  validator: (value) {
+                    if (value!.isEmpty) {
+                      return 'Ingrese un nombre de producto';
+                    }
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 15, left: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Descripción',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 15, right: 15),
+                child: TextFormField(
+                  controller: _controllerDescripcion,
+                  validator: (value) {
+                    if (value!.isEmpty) {
+                      return 'Ingrese una descipción del producto';
+                    }
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 20, bottom: 10),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.3,
+                    child: (file == null)
+                        ? Image.asset('assets/noimage.png')
+                        : Image.file(file!),
                   ),
-                ],
+                ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(left: 20, right: 20),
-              child: TextFormField(
-                controller: _controllerNombre,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(fileName),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 15, left: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Descripción',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ],
+              ElevatedButton.icon(
+                onPressed: selectFile,
+                icon: Icon(Icons.cloud_upload_outlined),
+                label: Text('Selecciona imagen'),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 15, right: 15),
-              child: TextFormField(
-                controller: _controllerDescripcion,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 15, left: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Imagen',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ],
-              ),
-            ),
-            Text(fileName),
-            GestureDetector(
-              onTap: selectFile,
-              child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-                child: FadeInImage(
-                    placeholder: NetworkImage(
-                        'https://cdn.dribbble.com/users/93860/screenshots/6619359/file.png'),
-                    image: NetworkImage(
-                        'https://cdn.dribbble.com/users/93860/screenshots/6619359/file.png')),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: uploadFile,
-              icon: Icon(Icons.cloud_upload_outlined),
-              label: Text('Subir imagen'),
-            ),
-            task != null ? uploadStatus(task!) : Container(),
-            ElevatedButton.icon(
-              onPressed: uploadProduct,
-              icon: Icon(Icons.cloud_done_outlined),
-              label: Text('Registrar producto'),
-            )
-          ],
+              task != null ? uploadStatus(task!) : Container(),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    (file == null)
+                        ? _alertDialog(context, 'Agrega una fotografía')
+                        : uploadProduct();
+                  } else {
+                    _alertDialog(context, 'Ingresa los campos vacios');
+                  }
+                },
+                icon: Icon(Icons.cloud_done_outlined),
+                label: Text('Registrar producto'),
+              )
+            ],
+          ),
         ),
       ),
     );
@@ -124,23 +139,20 @@ class _FormProductScreenState extends State<FormProductScreen> {
     setState(() => file = File(path));
   }
 
-  Future uploadFile() async {
-    if (file == null) return;
+  Future<String?> uploadFile() async {
+    if (file == null) return null;
 
     final fileName = basename(file!.path);
     final destination = 'files/$fileName';
 
     task = FirebaseApi.uploadFile(destination, file!);
     setState(() {});
-    if (task == null) return;
+    if (task == null) return null;
 
     final snapshot = await task!.whenComplete(() => {});
     final urlDownload = await snapshot.ref.getDownloadURL();
-    setState(() {
-      urlImage = urlDownload;
-    });
 
-    print('Download-link: $urlDownload');
+    return urlDownload;
   }
 
   Widget uploadStatus(UploadTask task) => StreamBuilder<TaskSnapshot>(
@@ -162,12 +174,81 @@ class _FormProductScreenState extends State<FormProductScreen> {
       );
 
   Future uploadProduct() async {
-    if (urlImage == null) return;
-    ProductDAO productDAO = ProductDAO(
-        cveprod: _controllerNombre.text,
-        descprod: _controllerDescripcion.text,
-        imgprod: urlImage);
-    _firebaseProvider?.saveProduct(productDAO);
-    Get.back();
+    if (_controllerNombre.text.isEmpty || _controllerDescripcion.text.isEmpty) {
+      print('faltan datos');
+      return;
+    } else {
+      final urlImage = await uploadFile();
+      if (urlImage == null) {
+        print('sin imagen');
+        return;
+      }
+
+      ProductDAO productDAO = ProductDAO(
+          cveprod: _controllerNombre.text,
+          descprod: _controllerDescripcion.text,
+          imgprod: urlImage);
+      print(productDAO.toMap());
+      _firebaseProvider.saveProduct(productDAO);
+      Get.back();
+    }
+  }
+
+  Widget? _alertDialog(context, String message) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0)),
+            child: Stack(
+              clipBehavior: Clip.none,
+              //overflow: Overflow.visible,
+              alignment: Alignment.topCenter,
+              children: [
+                Container(
+                  margin: EdgeInsets.only(top: 30),
+                  height: 200,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(10, 60, 10, 10),
+                    child: Column(
+                      children: [
+                        Text(
+                          message,
+                          style: TextStyle(fontSize: 20),
+                        ),
+                        SizedBox(
+                          height: 15,
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Get.back();
+                          },
+                          icon: Icon(Icons.info_outline),
+                          label: Text(
+                            'Aceptar',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+                const Positioned(
+                  top: -60.0,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.redAccent,
+                    radius: 60,
+                    child: Icon(
+                      Icons.unpublished_outlined,
+                      color: Colors.white,
+                      size: 50,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
   }
 }
